@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>audio2txt</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f5f5f5;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 16px rgba(0,0,0,.08);
+      padding: 2rem;
+      width: 100%;
+      max-width: 560px;
+    }
+
+    h1 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin-bottom: 1.5rem;
+      color: #111;
+    }
+
+    .drop-zone {
+      border: 2px dashed #ccc;
+      border-radius: 8px;
+      padding: 2.5rem 1rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+      color: #666;
+    }
+
+    .drop-zone.over {
+      border-color: #4f46e5;
+      background: #eef2ff;
+    }
+
+    .drop-zone input[type="file"] { display: none; }
+
+    .drop-zone .icon { font-size: 2rem; margin-bottom: .5rem; }
+
+    .file-name {
+      margin-top: .75rem;
+      font-size: .875rem;
+      color: #4f46e5;
+      font-weight: 500;
+      min-height: 1.25rem;
+    }
+
+    .row {
+      display: flex;
+      gap: .75rem;
+      margin-top: 1.25rem;
+      align-items: flex-end;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: .35rem;
+      flex: 1;
+    }
+
+    label { font-size: .8rem; font-weight: 600; color: #444; }
+
+    select {
+      padding: .5rem .75rem;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: .9rem;
+      background: #fff;
+      color: #111;
+    }
+
+    button {
+      padding: .55rem 1.4rem;
+      background: #4f46e5;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: .9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .2s;
+      white-space: nowrap;
+    }
+
+    button:hover:not(:disabled) { background: #4338ca; }
+    button:disabled { background: #a5b4fc; cursor: not-allowed; }
+
+    .status {
+      margin-top: 1rem;
+      font-size: .85rem;
+      color: #666;
+      min-height: 1.25rem;
+    }
+
+    .status.error { color: #dc2626; }
+
+    .result-box {
+      margin-top: 1.25rem;
+      display: none;
+    }
+
+    .result-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: .5rem;
+    }
+
+    .result-header span { font-size: .8rem; font-weight: 600; color: #444; }
+
+    .copy-btn {
+      padding: .3rem .8rem;
+      background: #f3f4f6;
+      color: #374151;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      font-size: .78rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background .2s;
+    }
+    .copy-btn:hover { background: #e5e7eb; }
+
+    textarea {
+      width: 100%;
+      min-height: 160px;
+      padding: .75rem;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: .9rem;
+      line-height: 1.6;
+      resize: vertical;
+      color: #111;
+      font-family: inherit;
+    }
+
+    .meta {
+      margin-top: .5rem;
+      font-size: .78rem;
+      color: #9ca3af;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>audio2txt</h1>
+
+    <div class="drop-zone" id="dropZone">
+      <div class="icon">🎙️</div>
+      <div>Arrasta o ficheiro aqui ou <u>clica para selecionar</u></div>
+      <div style="font-size:.78rem;margin-top:.4rem;color:#9ca3af">M4A · MP3 · WAV · MP4 · OGG · FLAC · WEBM</div>
+      <input type="file" id="fileInput" accept=".m4a,.mp3,.mp4,.mpeg,.mpga,.wav,.webm,.ogg,.flac" />
+    </div>
+    <div class="file-name" id="fileName"></div>
+
+    <div class="row">
+      <div class="field">
+        <label for="langSelect">Idioma</label>
+        <select id="langSelect">
+          <option value="">Deteção automática</option>
+          <option value="pt">Português</option>
+          <option value="en">Inglês</option>
+          <option value="es">Espanhol</option>
+          <option value="fr">Francês</option>
+          <option value="de">Alemão</option>
+          <option value="it">Italiano</option>
+          <option value="zh">Chinês</option>
+          <option value="ja">Japonês</option>
+        </select>
+      </div>
+      <button id="transcribeBtn" disabled>Transcrever</button>
+    </div>
+
+    <div class="status" id="status"></div>
+
+    <div class="result-box" id="resultBox">
+      <div class="result-header">
+        <span>Transcrição</span>
+        <button class="copy-btn" id="copyBtn">Copiar</button>
+      </div>
+      <textarea id="resultText" readonly></textarea>
+      <div class="meta" id="meta"></div>
+    </div>
+  </div>
+
+  <script>
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const fileName = document.getElementById('fileName');
+    const transcribeBtn = document.getElementById('transcribeBtn');
+    const langSelect = document.getElementById('langSelect');
+    const status = document.getElementById('status');
+    const resultBox = document.getElementById('resultBox');
+    const resultText = document.getElementById('resultText');
+    const meta = document.getElementById('meta');
+    const copyBtn = document.getElementById('copyBtn');
+
+    let selectedFile = null;
+
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    dropZone.addEventListener('dragover', e => {
+      e.preventDefault();
+      dropZone.classList.add('over');
+    });
+
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('over'));
+
+    dropZone.addEventListener('drop', e => {
+      e.preventDefault();
+      dropZone.classList.remove('over');
+      const file = e.dataTransfer.files[0];
+      if (file) setFile(file);
+    });
+
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files[0]) setFile(fileInput.files[0]);
+    });
+
+    function setFile(file) {
+      selectedFile = file;
+      fileName.textContent = file.name;
+      transcribeBtn.disabled = false;
+      status.textContent = '';
+      status.className = 'status';
+      resultBox.style.display = 'none';
+    }
+
+    transcribeBtn.addEventListener('click', async () => {
+      if (!selectedFile) return;
+
+      transcribeBtn.disabled = true;
+      status.className = 'status';
+      status.textContent = 'A transcrever... isto pode demorar alguns segundos.';
+      resultBox.style.display = 'none';
+
+      const form = new FormData();
+      form.append('file', selectedFile);
+      const lang = langSelect.value;
+      if (lang) form.append('language', lang);
+
+      try {
+        const res = await fetch('/transcribe', { method: 'POST', body: form });
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.detail || `Erro ${res.status}`);
+        }
+
+        resultText.value = data.text;
+        const parts = [];
+        if (data.language) parts.push(`Idioma: ${data.language}`);
+        if (data.duration) parts.push(`Duração: ${Math.round(data.duration)}s`);
+        meta.textContent = parts.join(' · ');
+
+        resultBox.style.display = 'block';
+        status.textContent = '';
+      } catch (err) {
+        status.className = 'status error';
+        status.textContent = err.message;
+      } finally {
+        transcribeBtn.disabled = false;
+      }
+    });
+
+    copyBtn.addEventListener('click', () => {
+      navigator.clipboard.writeText(resultText.value);
+      copyBtn.textContent = 'Copiado!';
+      setTimeout(() => copyBtn.textContent = 'Copiar', 2000);
+    });
+  </script>
+</body>
+</html>
