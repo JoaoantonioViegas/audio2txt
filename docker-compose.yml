@@ -2,6 +2,8 @@ services:
   audio2txt:
     build: .
     restart: unless-stopped
+    ports:
+      - "8000:8000"
 
   cloudflared:
     image: cloudflare/cloudflared:latest
