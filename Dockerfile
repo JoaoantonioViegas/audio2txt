@@ -1,15 +1,17 @@
-FROM python:3.12-slim
+FROM nvidia/cuda:12.3.1-cudnn9-runtime-ubuntu22.04
 
 # ffmpeg is required by whisper to decode audio formats (m4a, mp3, etc.)
-RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg python3 python3-pip && \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip3 install --no-cache-dir -r requirements.txt
 
 # pre-download the whisper model so it's baked into the image
-RUN python -c "import whisper; whisper.load_model('base')"
+RUN python3 -c "import whisper; whisper.load_model('small')"
 
 COPY app/ .
 
