@@ -1,4 +1,4 @@
-FROM nvidia/cuda:12.3.1-cudnn9-runtime-ubuntu22.04
+FROM nvidia/cuda:12.3.2-cudnn9-runtime-ubuntu22.04
 
 # ffmpeg is required by whisper to decode audio formats (m4a, mp3, etc.)
 RUN apt-get update && apt-get install -y --no-install-recommends \
